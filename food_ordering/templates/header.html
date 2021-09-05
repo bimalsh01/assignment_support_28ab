@@ -14,8 +14,13 @@
           <a class="nav-link {{activate_food_user}}" href="/foods/get_food_user">Foods</a>
         </li>
         <li class="nav-item">
-          <a class="nav-link" href="#">Menu</a>
+          <a class="nav-link {{activate_menu}}" href="/foods/menu">Menu</a> </li>
           {% if user.is_authenticated %}
+         <li class="nav-item">
+          <a class="nav-link {{activate_my_cart}}" href="/foods/mycart">My Cart</a>
+        </li>
+         <li class="nav-item">
+          <a class="nav-link {{activate_myorder}}" href="/foods/my_order">My Orders</a>
         </li>
           <li class="nav-item">
           <a class="nav-link" href="/logout">Logout</a>

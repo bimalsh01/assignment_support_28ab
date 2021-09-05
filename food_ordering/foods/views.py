@@ -1,10 +1,12 @@
 from django.shortcuts import render, redirect
-from .forms import CategoryForm, FoodForm
+from .forms import CategoryForm, FoodForm, OrderForm
 from django.contrib import messages
-from .models import Category, Food
+from .models import Category, Food, Cart, Order
+
 from accounts.auth import admin_only, user_only
 from django.contrib.auth.decorators import login_required
 import os
+
 
 def homepage(request):
     return render(request, 'foods/homepage.html')
@@ -14,7 +16,7 @@ def homepage(request):
 @admin_only
 def category_form(request):
     if request.method == "POST":
-        form = CategoryForm(request.POST)
+        form = CategoryForm(request.POST, request.FILES)
         if form.is_valid():
             form.save()
             messages.add_message(request, messages.SUCCESS, 'Category added successfully')
@@ -113,6 +115,8 @@ def delete_food(request, food_id):
 def food_update_form(request, food_id):
     food = Food.objects.get(id=food_id)
     if request.method == "POST":
+        if request.FILES.get('food_image'):
+            os.remove(food.food_image.path)
         form = FoodForm(request.POST, request.FILES, instance=food)
         if form.is_valid():
             form.save()
@@ -145,3 +149,95 @@ def show_foods(request):
     }
     return render(request, 'foods/show_foods.html', context)
 
+def menu(request):
+    categories  = Category.objects.all().order_by('-id')
+    context = {
+        'categories':categories,
+        'activate_menu':'active'
+    }
+    return render(request, 'foods/menu.html', context)
+
+@login_required
+@user_only
+def add_to_cart(request, food_id):
+    user = request.user
+    food = Food.objects.get(id=food_id)
+
+    check_item_presence = Cart.objects.filter(user=user, food=food)
+    if check_item_presence:
+        messages.add_message(request, messages.ERROR, 'Item is already present in cart')
+        return redirect('/foods/get_food_user')
+    else:
+        cart = Cart.objects.create(food=food, user=user)
+        if cart:
+            messages.add_message(request, messages.SUCCESS, 'Item added to cart')
+            return redirect('/foods/mycart')
+        else:
+            messages.add_message(request, messages.ERROR, 'Unable to add item to cart')
+
+
+@login_required
+@user_only
+def show_cart_items(request):
+    user = request.user
+    items = Cart.objects.filter(user= user)
+    context = {
+        'items':items,
+        'activate_my_cart':'active'
+    }
+    return render(request, 'foods/mycart.html', context)
+
+@login_required
+@user_only
+def remove_cart_item(request, cart_id):
+    item = Cart.objects.get(id=cart_id)
+    item.delete()
+    messages.add_message(request, messages.SUCCESS, 'Cart item removed successfully')
+    return redirect('/foods/mycart')
+
+
+@login_required
+@user_only
+def order_form(request, food_id,cart_id):
+    user = request.user
+    food = Food.objects.get(id=food_id)
+    cart_item = Cart.objects.get(id=cart_id)
+    if request.method == 'POST':
+        form = OrderForm(request.POST)
+        if form.is_valid():
+            quantity = request.POST.get('quantity')
+            price = food.food_price
+            total_price = int(quantity)*int(price)
+            contact_no = request.POST.get('contact_no')
+            contact_address = request.POST.get('contact_address')
+            order = Order.objects.create(food=food,
+                                         user =user,
+                                         quantity=quantity,
+                                         total_price=total_price,
+                                         contact_no = contact_no,
+                                         contact_address =contact_address,
+                                         status="Pending"
+            )
+            if order:
+                messages.add_message(request, messages.SUCCESS, 'Item ordered')
+                cart_item.delete()
+                return redirect('/foods/my_order')
+        else:
+            messages.add_message(request, messages.ERROR, 'Something went wrong')
+            return render(request, 'foods/order_form.html', {'order_form':form})
+    context = {
+        'order_form': OrderForm
+    }
+    return render(request, 'foods/order_form.html', context)
+
+
+@login_required
+@user_only
+def my_order(request):
+    user = request.user
+    items = Order.objects.filter(user=user).order_by('-id')
+    context = {
+        'items':items,
+        'activate_myorders':'active'
+    }
+    return render(request, 'foods/my_order.html', context)

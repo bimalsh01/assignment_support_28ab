@@ -1,11 +1,13 @@
 from django.db import models
 from django.core.validators import *
 from django.core import validators
+from django.contrib.auth.models import User
 
 class Category(models.Model):
     category_name = models.CharField(max_length=200, null=True, validators=[validators.MinLengthValidator(2)])
     category_description = models.TextField(null=True)
     created_date = models.DateTimeField(auto_now_add=True, null=True)
+    category_image = models.FileField(upload_to='static/uploads', null=True)
 
     def __str__(self):
         return self.category_name
@@ -20,5 +22,26 @@ class Food(models.Model):
 
     def __str__(self):
         return self.food_name
+
+
+class Cart(models.Model):
+    food = models.ForeignKey(Food, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    created_date = models.DateTimeField(auto_now_add=True)
+
+
+class Order(models.Model):
+    STATUS = (
+        ('Pending', 'Pending'),
+        ('Delivered', 'Delivered'),
+    )
+    food = models.ForeignKey(Food, null=True, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, null=True, on_delete=models.CASCADE)
+    quantity = models.IntegerField(validators=[MinValueValidator(1), MaxValueValidator(1000)])
+    total_price = models.IntegerField(null=True)
+    status = models.CharField(max_length=200, choices=STATUS, null=True)
+    contact_no = models.CharField(validators=[MinLengthValidator(9), MaxLengthValidator(10)], null=True, max_length=10)
+    contact_address = models.CharField(max_length=200, null=True)
+    created_date = models.DateTimeField(auto_now_add=True, null=True)
 
 
